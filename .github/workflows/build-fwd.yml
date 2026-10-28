@@ -1,0 +1,57 @@
+name: Build Forwarder
+
+# Compila el lanzador pequeno de un juego (ramas fwd/**). Tarda ~2 minutos.
+on:
+  push:
+    branches: ['fwd/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias
+        run: |
+          for i in 1 2 3 4 5; do
+            dkp-pacman -S --noconfirm --needed switch-tools libnx && break
+            sleep 20
+            dkp-pacman -Sy || true
+          done
+
+      - name: Compilar
+        shell: bash
+        run: |
+          export DEVKITPRO=/opt/devkitpro
+          # 1) pieza del icono del HOME (forwarder hbloader) -> launcher/romfs/fwd
+          make -C launcher/fwd > /tmp/stub.log 2>&1 || {
+            msg=$(tail -n 20 /tmp/stub.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Fallo la pieza del icono::$msg"; exit 1; }
+          mkdir -p fwd/romfs/fwd
+          cp launcher/romfs/fwd/hbl.nso launcher/romfs/fwd/hbl.npdm launcher/romfs/fwd/default.nacp fwd/romfs/fwd/
+          cp fwd/icon.jpg fwd/romfs/home-icon.jpg
+          cd fwd
+          TITLE="$(grep '^TITLE=' app.cfg | cut -d= -f2-)"
+          AUTHOR="$(grep '^AUTHOR=' app.cfg | cut -d= -f2-)"
+          # 2) lanzador (C++ porque reutiliza el creador de iconos del HOME)
+          set -o pipefail
+          /opt/devkitpro/devkitA64/bin/aarch64-none-elf-g++ -std=gnu++17 -O2 -g -march=armv8-a+crc+crypto -mtp=soft -fPIE \
+            -specs=$DEVKITPRO/libnx/switch.specs -D__SWITCH__ -DFWD_NO_SDL -I$DEVKITPRO/libnx/include \
+            main.cpp -L$DEVKITPRO/libnx/lib -lnx -o fwd.elf 2>&1 | tee build.log || {
+              msg=$(grep -n -i -E "error|undefined" build.log | head -n 20 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+              echo "::error title=Fallo del lanzador::$msg"; exit 1; }
+          /opt/devkitpro/tools/bin/nacptool --create "$TITLE" "$AUTHOR" 1.0.0 fwd.nacp
+          /opt/devkitpro/tools/bin/elf2nro fwd.elf NetherSX2.nro --icon=icon.jpg --nacp=fwd.nacp --romfsdir=romfs
+          ls -la NetherSX2.nro
+
+      - name: Nombre del artefacto
+        id: slug
+        run: echo "v=$(echo "$GITHUB_REF_NAME" | tr '/' '-')" >> "$GITHUB_OUTPUT"
+
+      - name: Subir .nro
+        uses: actions/upload-artifact@v4
+        with:
+          name: nro-${{ steps.slug.outputs.v }}
+          path: fwd/NetherSX2.nro

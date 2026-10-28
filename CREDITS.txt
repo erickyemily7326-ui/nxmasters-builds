@@ -1,0 +1,15 @@
+RE Outbreak - Switch
+Hecho por grupo NX masters
+Créditos a Erick Escobedo
+
+Base y software original
+- NetherSX2 Switch Port por NaGaa95 (https://github.com/NaGaa95/NetherSX2_nx), licencia MIT
+- AetherSX2 / PCSX2 (emulador)
+- Mantenedores de los builds parcheados de NetherSX2
+- fgsfds (base del so-loader para Switch)
+- TheOfficialFloW (so-loader original para Android)
+- Dantiicu (driver Vulkan para Switch)
+- Slluxx (IconGrabber)
+
+Este proyecto no incluye BIOS, imagen de disco ni el núcleo del emulador.
+Cada usuario debe usar su propia BIOS y sus propios juegos.

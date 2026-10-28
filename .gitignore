@@ -1,0 +1,17 @@
+/build/
+/build-*/
+__pycache__/
+*.log
+/launcher/build/
+/launcher/dependencies/build/
+/launcher/romfs/cores/
+/launcher/romfs/emu/
+/launcher/romfs/fwd/
+/launcher/romfs/res/
+*.nro
+*.nacp
+*.elf
+*.map
+/out/
+/vulkan/
+Lossless.dll

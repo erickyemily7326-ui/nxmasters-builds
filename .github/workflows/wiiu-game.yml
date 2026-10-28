@@ -1,0 +1,63 @@
+name: Wii U Game
+
+# Crea el instalador de icono HOME de UN juego de Wii U (ramas wiiu/**).
+# La pagina "NX masters" sube cemu-games-extra/<slug>.conf y .jpg a la rama.
+# Usa blackops2-wiiu.patch (que trae tools/build-game.sh y el instalador).
+on:
+  push:
+    branches: ['wiiu/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    timeout-minutes: 60
+    steps:
+      - name: Herramientas
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates curl zip python3 python3-pil
+
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Datos del juego
+        id: g
+        run: |
+          SLUG="${GITHUB_REF_NAME#wiiu/}"
+          test -f "cemu-games-extra/$SLUG.conf" || { echo "Falta cemu-games-extra/$SLUG.conf"; exit 1; }
+          test -f "cemu-games-extra/$SLUG.jpg"  || { echo "Falta cemu-games-extra/$SLUG.jpg"; exit 1; }
+          mkdir -p /tmp/extra
+          cp cemu-games-extra/* /tmp/extra/
+          cp blackops2-wiiu.patch /tmp/juego.patch
+          cp -r wiiu-gate /tmp/wiiu-gate
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+          echo "art=nro-$(echo "$GITHUB_REF_NAME" | tr '/' '-')" >> "$GITHUB_OUTPUT"
+
+      - name: Aplicar la base (Cemu-nx 1.2.0 + parche del instalador)
+        run: |
+          git config --global --add safe.directory '*'
+          git config user.name "build"
+          git config user.email "build@localhost"
+          base=69cf06ee875a5c25f3e2ad43f0a8e9624a5a79b6
+          git fetch --depth 1 https://github.com/NaGaa95/Cemu-nx.git "$base"
+          git checkout --force FETCH_HEAD
+          git am /tmp/juego.patch
+          cp /tmp/extra/${{ steps.g.outputs.slug }}.conf /tmp/extra/${{ steps.g.outputs.slug }}.jpg cemu-games/
+          cp -r /tmp/wiiu-gate wiiu-gate
+          python3 wiiu-gate/apply.py
+          git log -2 --oneline
+
+      - name: Compilar
+        run: bash tools/build-game.sh "${{ steps.g.outputs.slug }}"
+
+      - name: Subir el zip para la SD
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.g.outputs.art }}
+          path: out/${{ steps.g.outputs.slug }}-card.zip
+          compression-level: 0
+          retention-days: 7
