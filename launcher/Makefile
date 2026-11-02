@@ -22,7 +22,7 @@ INCLUDES	:=	include ../source/switch \
 			dependencies/build/_deps/libusbhsfs-src/include
 ROMFS		:=	romfs		# bundles the emulator cores (cores/emucore_*.so)
 
-APP_TITLE	:=	NetherSX2
+APP_TITLE	:=	Dragon Ball Z Budokai 4  NXM
 APP_AUTHOR	:=	grupo NX masters
 APP_VERSION	:=	1.4.0
 RELEASE_VERSION	?=	$(APP_VERSION)
